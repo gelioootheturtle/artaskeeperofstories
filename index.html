@@ -1,0 +1,309 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Art as a Keeper of Stories</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: dark reading-room stage, the book centered and as large as the screen allows, thin control bar below. */
+:root {
+  --stage: #131110;
+  --stage-glow: #2b2622;
+  --ink: #efe9e1;
+  --ink-dim: #a39a8f;
+  --line: rgba(239, 233, 225, .14);
+  --chip: rgba(239, 233, 225, .08);
+  --chip-hover: rgba(239, 233, 225, .18);
+  --accent: #f3c13a;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--stage);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 70% 60% at 50% 45%, var(--stage-glow) 0%, var(--stage) 75%);
+}
+#stage {
+  position: relative; z-index: 1; flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding-block: 18px 6px;
+}
+#book-wrap { width: 100%; height: 100%; position: relative; }
+#book { margin: 0 auto; }
+.stf__parent { margin: 0 auto; }
+.nav-hit {
+  position: absolute; top: 0; bottom: 0; width: 56px; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; color: var(--ink); cursor: pointer; opacity: .0;
+  transition: opacity .2s;
+}
+#stage:hover .nav-hit { opacity: .7; }
+.nav-hit:hover { opacity: 1 !important; }
+.nav-hit:disabled { visibility: hidden; }
+.nav-hit.prev { left: 0; } .nav-hit.next { right: 0; }
+.nav-hit svg { width: 34px; height: 34px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
+
+#bar {
+  position: relative; z-index: 2; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 14px; justify-content: center;
+  padding-block: 8px 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  flex-wrap: wrap;
+}
+.btn {
+  appearance: none; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.btn:hover { background: var(--chip-hover); }
+.btn:active { transform: scale(.94); }
+.btn:focus-visible, .nav-hit:focus-visible, .thumb:focus-visible, #scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn svg { width: 19px; height: 19px; }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .35; cursor: default; }
+.progress { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 0 1 380px; }
+#count { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-dim); white-space: nowrap; min-width: 74px; text-align: center; }
+#scrub { flex: 1; min-width: 80px; accent-color: var(--accent); height: 4px; cursor: pointer; }
+
+#thumbs {
+  position: absolute; z-index: 6; left: 0; right: 0; bottom: 0;
+  transform: translateY(105%); transition: transform .3s ease;
+  background: rgba(19, 17, 16, .94); border-top: 1px solid var(--line);
+  padding: 14px max(16px, env(safe-area-inset-left, 0px)) calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 10px; overflow-x: auto; justify-content: safe center;
+}
+#thumbs.open { transform: none; }
+.thumb { flex: 0 0 auto; width: 74px; border: 2px solid transparent; border-radius: 3px; padding: 0; background: none; cursor: pointer; opacity: .6; transition: opacity .15s, border-color .15s; }
+.thumb img { display: block; width: 100%; height: auto; border-radius: 2px; }
+.thumb:hover { opacity: 1; }
+.thumb.on { border-color: var(--accent); opacity: 1; }
+
+#zoom {
+  position: fixed; inset: 0; z-index: 20; background: rgba(10, 9, 8, .97);
+  display: none; overflow: auto; cursor: zoom-in;
+  padding: 0;
+}
+#zoom.open { display: block; }
+#zoom .inner { min-height: 100%; display: flex; align-items: center; justify-content: center; gap: 0; }
+#zoom img { display: block; height: 100vh; width: auto; max-width: 50vw; object-fit: contain; }
+#zoom.single img { max-width: 100vw; }
+#zoom.in { cursor: zoom-out; }
+#zoom.in img { height: 210vh; max-width: none; }
+#zoom.in .inner { justify-content: flex-start; width: max-content; min-width: 100%; }
+#zoom .close { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: max(14px, env(safe-area-inset-right, 0px)); z-index: 21; }
+
+@media (max-width: 560px) {
+  .progress { order: 3; flex: 1 1 100%; }
+  .btn { width: 38px; height: 38px; }
+  #bar { gap: 10px; }
+  .nav-hit { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { #thumbs { transition: none; } }
+</style>
+
+<main id="stage">
+  <div id="book-wrap">
+    <button class="nav-hit prev" id="hitPrev" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="nav-hit next" id="hitNext" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    <div id="book"></div>
+  </div>
+</main>
+
+<nav id="bar" aria-label="Magazine controls">
+  <button class="btn" id="bFirst" aria-label="First page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-6 6 6 6M7 6v12"/></svg></button>
+  <button class="btn" id="bPrev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="progress">
+    <span id="count">1 / 10</span>
+    <input id="scrub" type="range" min="0" max="9" value="0" aria-label="Go to page">
+  </div>
+  <button class="btn" id="bNext" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  <button class="btn" id="bLast" aria-label="Last page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l6 6-6 6M17 6v12"/></svg></button>
+  <button class="btn" id="bThumbs" aria-label="All pages" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+  <button class="btn" id="bZoom" aria-label="Zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button>
+  <button class="btn" id="bSound" aria-label="Page sound" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7"/></svg></button>
+  <button class="btn" id="bFull" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</nav>
+
+<div id="thumbs" aria-label="All pages"></div>
+
+<div id="zoom" role="dialog" aria-label="Zoomed pages">
+  <button class="btn close" id="zClose" aria-label="Close zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="inner" id="zInner"></div>
+</div>
+
+<script src="https://unpkg.com/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+<script>
+(function () {
+  var N = 10;
+  var pages = [];
+  for (var i = 1; i <= N; i++) pages.push('pages/p-' + (i < 10 ? '0' : '') + i + '.jpg');
+
+  var $ = function (id) { return document.getElementById(id); };
+  var bookEl = $('book'), wrap = $('book-wrap');
+  var flip = null;
+
+  /* Fit the book to the stage: A4 pages, two-page spread, never cropped */
+  var RATIO = 842.25 / 595.5;
+  function fitBook() {
+    var w = wrap.clientWidth, h = wrap.clientHeight;
+    var portrait = w < 760;
+    var pageH = Math.min(h, (portrait ? w : w / 2) * RATIO);
+    var pageW = pageH / RATIO;
+    bookEl.style.width = (portrait ? pageW : pageW * 2) + 'px';
+    bookEl.style.height = pageH + 'px';
+    return { pageW: pageW, pageH: pageH, portrait: portrait };
+  }
+  var fit = fitBook();
+
+  flip = new St.PageFlip(bookEl, {
+    width: 595, height: 842,
+    size: 'stretch',
+    minWidth: 220, maxWidth: 1000, minHeight: 311, maxHeight: 1414,
+    showCover: true,
+    usePortrait: true,
+    maxShadowOpacity: .55,
+    drawShadow: true,
+    flippingTime: 950,
+    startPage: 0,
+    autoSize: true,
+    mobileScrollSupport: false,
+    swipeDistance: 18,
+    clickEventForward: false,
+    showPageCorners: true,
+    disableFlipByClick: false
+  });
+  flip.loadFromImages(pages);
+
+  /* ---------- UI state ---------- */
+  var count = $('count'), scrub = $('scrub');
+  function visible(i) {
+    var portrait = flip.getOrientation() === 'portrait';
+    if (portrait || i === 0 || i === N - 1) return [i];
+    var left = (i % 2 === 1) ? i : i - 1;
+    return [left, left + 1];
+  }
+  function update(i) {
+    var v = visible(i);
+    count.textContent = (v.length === 2 ? (v[0] + 1) + '–' + (v[1] + 1) : (v[0] + 1)) + ' / ' + N;
+    scrub.value = i;
+    $('bFirst').disabled = $('bPrev').disabled = $('hitPrev').disabled = i === 0;
+    $('bLast').disabled = $('bNext').disabled = $('hitNext').disabled = i >= N - 1 || (v.length === 2 && v[1] === N - 1) || (v.length === 1 && v[0] === N - 1);
+    var t = document.querySelectorAll('.thumb');
+    for (var k = 0; k < t.length; k++) t[k].classList.toggle('on', v.indexOf(k) > -1);
+    try { history.replaceState(null, '', '#p' + (v[0] + 1)); } catch (e) {}
+  }
+  flip.on('flip', function (e) { update(e.data); });
+  flip.on('init', function () { update(flip.getCurrentPageIndex()); });
+  flip.on('changeOrientation', function () { update(flip.getCurrentPageIndex()); });
+  setTimeout(function () { update(flip.getCurrentPageIndex()); }, 60);
+
+  /* ---------- Navigation ---------- */
+  var next = function () { flip.flipNext('bottom'); };
+  var prev = function () { flip.flipPrev('bottom'); };
+  $('bNext').onclick = $('hitNext').onclick = next;
+  $('bPrev').onclick = $('hitPrev').onclick = prev;
+  $('bFirst').onclick = function () { flip.flip(0, 'bottom'); };
+  $('bLast').onclick = function () { flip.flip(N - 1, 'bottom'); };
+  scrub.oninput = function () { flip.flip(parseInt(scrub.value, 10), 'bottom'); };
+  document.addEventListener('keydown', function (e) {
+    if ($('zoom').classList.contains('open')) { if (e.key === 'Escape') closeZoom(); return; }
+    if (e.target && e.target.id === 'scrub') return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') flip.flip(0, 'bottom');
+    else if (e.key === 'End') flip.flip(N - 1, 'bottom');
+    else if (e.key === 'f' || e.key === 'F') toggleFull();
+    else if (e.key === 'z' || e.key === 'Z') openZoom();
+    else if (e.key === 'Escape') $('thumbs').classList.remove('open');
+  });
+
+  /* ---------- Thumbnails ---------- */
+  var th = $('thumbs');
+  pages.forEach(function (src, i) {
+    var b = document.createElement('button');
+    b.className = 'thumb'; b.setAttribute('aria-label', 'Page ' + (i + 1));
+    var im = document.createElement('img'); im.src = src; im.alt = ''; im.loading = 'lazy';
+    b.appendChild(im);
+    b.onclick = function () { flip.flip(i, 'bottom'); th.classList.remove('open'); $('bThumbs').setAttribute('aria-pressed', 'false'); };
+    th.appendChild(b);
+  });
+  $('bThumbs').onclick = function () {
+    var o = th.classList.toggle('open');
+    this.setAttribute('aria-pressed', o ? 'true' : 'false');
+  };
+
+  /* ---------- Zoom ---------- */
+  var zoom = $('zoom'), zIn = $('zInner');
+  function openZoom() {
+    var v = visible(flip.getCurrentPageIndex());
+    zIn.innerHTML = '';
+    v.forEach(function (i) { var im = new Image(); im.src = pages[i]; im.alt = 'Page ' + (i + 1); zIn.appendChild(im); });
+    zoom.classList.toggle('single', v.length === 1);
+    zoom.classList.remove('in');
+    zoom.classList.add('open');
+    zoom.scrollTop = 0; zoom.scrollLeft = 0;
+  }
+  function closeZoom() { zoom.classList.remove('open'); }
+  $('bZoom').onclick = openZoom;
+  $('zClose').onclick = function (e) { e.stopPropagation(); closeZoom(); };
+  zoom.addEventListener('click', function (e) {
+    if (e.target.closest('#zClose')) return;
+    var was = zoom.classList.contains('in');
+    var rx = (e.clientX + zoom.scrollLeft) / Math.max(1, zoom.scrollWidth);
+    var ry = (e.clientY + zoom.scrollTop) / Math.max(1, zoom.scrollHeight);
+    zoom.classList.toggle('in', !was);
+    zoom.scrollLeft = rx * zoom.scrollWidth - e.clientX;
+    zoom.scrollTop = ry * zoom.scrollHeight - e.clientY;
+  });
+
+  /* ---------- Fullscreen ---------- */
+  function toggleFull() {
+    try {
+      if (!document.fullscreenElement) { (document.documentElement.requestFullscreen() || Promise.resolve()).catch(function () {}); }
+      else document.exitFullscreen();
+    } catch (e) {}
+  }
+  $('bFull').onclick = toggleFull;
+
+  /* ---------- Page sound (synthesised, no files) ---------- */
+  var soundOn = true, ac = null;
+  $('bSound').onclick = function () {
+    soundOn = !soundOn; this.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+  };
+  function swoosh() {
+    if (!soundOn) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      var dur = .42, n = Math.floor(ac.sampleRate * dur);
+      var buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+      for (var i = 0; i < n; i++) {
+        var t = i / n, env = Math.sin(Math.PI * Math.pow(t, .7));
+        d[i] = (Math.random() * 2 - 1) * env * .5;
+      }
+      var src = ac.createBufferSource(); src.buffer = buf;
+      var f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = .8;
+      f.frequency.setValueAtTime(1200, ac.currentTime);
+      f.frequency.exponentialRampToValueAtTime(4200, ac.currentTime + dur);
+      var g = ac.createGain(); g.gain.value = .22;
+      src.connect(f); f.connect(g); g.connect(ac.destination); src.start();
+    } catch (e) {}
+  }
+  flip.on('changeState', function (e) { if (e.data === 'flipping') swoosh(); });
+
+  /* ---------- Resize + deep link ---------- */
+  var rt;
+  window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { fitBook(); try { flip.update(); } catch (e) {} }, 120); });
+  var m = /^#p(\d+)$/.exec(location.hash);
+  if (m) setTimeout(function () { var p = Math.min(N, Math.max(1, +m[1])) - 1; if (p) flip.turnToPage(p); }, 200);
+})();
+</script>
+
+</body></html>
